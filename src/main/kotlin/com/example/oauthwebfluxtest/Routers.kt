@@ -1,5 +1,8 @@
 package com.example.oauthwebfluxtest
 
+import com.nimbusds.oauth2.sdk.auth.ClientAuthentication
+import com.nimbusds.oauth2.sdk.auth.ClientSecretBasic
+import com.nimbusds.oauth2.sdk.auth.verifier.ClientAuthenticationVerifier
 import com.nimbusds.oauth2.sdk.http.HTTPRequest
 import com.nimbusds.oauth2.sdk.http.ServletUtils
 import org.springframework.context.annotation.Bean
@@ -11,28 +14,27 @@ import java.util.stream.Collectors
 @Configuration
 class RouterTest {
     @Bean
-    fun testRoute(): RouterFunction<ServerResponse> = RouterFunctions
+    fun testRoute(authService: AuthService): RouterFunction<ServerResponse> = RouterFunctions
         .nest(
             RequestPredicates.path("/dev"),
             router {
                 POST("/oauth/token") {
-                    it.bodyToMono(HashMap::class.java)
-                        .map { body ->
-                            val a = HTTPRequest(HTTPRequest.Method.POST, it.uri())
-                            a.authorization = it.headers().firstHeader(HttpHeaders.AUTHORIZATION)
-                            a.query = it.formData().map {
-                                it.entries.stream()
-                                    .map {
-                                        it.key + "=" + it.value
-                                    }
-                                    .collect(Collectors.joining("&"))
-                            }.block()
+                    it.formData().map {form ->
+                        val a = HTTPRequest(HTTPRequest.Method.POST, it.uri())
+                        a.authorization = it.headers().firstHeader(HttpHeaders.AUTHORIZATION)
+                        a.query = form.entries.stream()
+                            .map {
+                                it.key + "=" + it.value[0]
+                            }
+                            .collect(Collectors.joining("&"))
+                        a
+                    }.doOnNext { httpReq ->
+                        println(authService.getToken(httpReq))
+                        println()
+                    }.flatMap {
+                        ServerResponse.ok().bodyValue(mapOf("result" to "success"))
+                    }
 
-                            ""
-                        }
-                        .flatMap {
-                            ServerResponse.ok().bodyValue(mapOf("result" to "success"))
-                        }
                 }
             }
         )
