@@ -1,6 +1,8 @@
 package com.example.oauthwebfluxtest
 
 import com.example.oauthwebfluxtest.auth.AuthService
+import com.nimbusds.oauth2.sdk.AccessTokenResponse
+import com.nimbusds.oauth2.sdk.TokenResponse
 import com.nimbusds.oauth2.sdk.http.HTTPRequest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -13,14 +15,13 @@ class RouterTest {
     @Bean
     fun testRoute(authService: AuthService): RouterFunction<ServerResponse> = RouterFunctions
         .nest(
-            RequestPredicates.path("/dev"),
+            RequestPredicates.all(),
             router {
                 POST("/oauth/token") {
                     it.formData().map {form ->
                         authService.mapToHTTPRequest(it, form, null)
-                    }.doOnNext { httpReq ->
-                        println(authService.getToken(httpReq))
-                        println()
+                    }.map { httpReq ->
+                        authService.getToken(httpReq)
                     }.flatMap {
                         ServerResponse.ok().bodyValue(mapOf("result" to "success"))
                     }

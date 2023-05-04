@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 
 @SpringBootApplication
 @EnableJpaRepositories(basePackages = ["com.example.oauthwebfluxtest"])
-@EnableJpaAuditing
+@EnableJpaAuditing()
 class OauthWebfluxTestApplication
 
 fun main(args: Array<String>) {

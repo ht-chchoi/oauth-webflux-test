@@ -2,6 +2,7 @@ package com.example.oauthwebfluxtest.auth
 
 import com.nimbusds.common.contenttype.ContentType
 import com.nimbusds.jose.JWSHeader
+import com.nimbusds.oauth2.sdk.AccessTokenResponse
 import com.nimbusds.oauth2.sdk.ParseException
 import com.nimbusds.oauth2.sdk.TokenRequest
 import com.nimbusds.oauth2.sdk.auth.ClientAuthentication
@@ -12,10 +13,13 @@ import com.nimbusds.oauth2.sdk.auth.verifier.*
 import com.nimbusds.oauth2.sdk.http.HTTPRequest
 import com.nimbusds.oauth2.sdk.id.Audience
 import com.nimbusds.oauth2.sdk.id.ClientID
+import com.nimbusds.oauth2.sdk.token.AccessTokenType
+import com.nimbusds.oauth2.sdk.token.Tokens
 import com.nimbusds.oauth2.sdk.util.CollectionUtils
 import com.nimbusds.oauth2.sdk.util.ListUtils
 import com.nimbusds.oauth2.sdk.util.URLUtils
 import com.nimbusds.oauth2.sdk.util.X509CertificateUtils
+import net.minidev.json.JSONObject
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -28,12 +32,11 @@ import java.security.PublicKey
 import java.security.cert.X509Certificate
 import java.util.*
 import java.util.stream.Collectors
+import javax.annotation.PostConstruct
 
 @Service
 class AuthService(
-    val clientDetailsRepository: ClientDetailsRepository,
-    val clientAuthenticationVerifier: ClientAuthenticationVerifier<ClientDetails>) {
-
+    val clientService: ClientService) {
 
     fun <T> mapToHTTPRequest(serverRequest: ServerRequest, formData: MultiValueMap<String, String>?, body: T?): HTTPRequest {
         val method = HTTPRequest.Method.valueOf(serverRequest.methodName().uppercase())
@@ -103,87 +106,21 @@ class AuthService(
         }
     }
 
-    fun getToken(request: HTTPRequest):String {
+    fun getToken(request: HTTPRequest):Tokens {
         val tokenRequest = TokenRequest.parse(request)
         val clientAuth = ClientAuthentication.parse(request)
-        clientAuthenticationVerifier.verify(clientAuth, null, null)
-//        val tokens = Tokens.parse(JSONObject())
-//        val a= this.clientDetailsRepository.findByClientId(clientAuth.clientID.value)
+        val verify = clientService.isValidClient(clientAuth, null, null)
 
+        val tokenJson = mapOf(
+            "token_type" to AccessTokenType.BEARER.value,
+            "access_token" to "temp-access-token",
+            "expires_in" to 86400,
+            "scope" to "main:*,test:*",
+            "refresh_token" to "temp-refresh-token"
+        )
+        val tokens = Tokens.parse(JSONObject(tokenJson))
+        val tokenResponse = AccessTokenResponse.parse(JSONObject(tokenJson))
 
-        return ""
-    }
-}
-
-@Configuration
-class AuthConfig {
-    @Bean
-    fun clientAuthenticationVerifier(
-        databaseClientCredentialsSelector: DatabaseClientCredentialsSelector
-    ): ClientAuthenticationVerifier<ClientDetails> = ClientAuthenticationVerifier(
-        databaseClientCredentialsSelector, setOf(Audience("TO_BE_CREATE"))
-    )
-}
-
-@Component
-class ClientAuthenticationVerifierEncodeSupport(
-    private val passwordEncoder: PasswordEncoder,
-    databaseClientCredentialsSelector: DatabaseClientCredentialsSelector
-): ClientAuthenticationVerifier<ClientDetails>(
-    databaseClientCredentialsSelector, setOf(Audience("TO_BE_CREATE"))
-) {
-    override fun verify(clientAuth: ClientAuthentication?, hints: MutableSet<Hint>?, context: Context<ClientDetails>?) {
-        when (clientAuth) {
-            is PlainClientSecret -> this.verifyPlainClientSecret()
-            else -> super.verify(clientAuth, hints, context)
-        }
-    }
-
-    private fun verifyPlainClientSecret(clientAuth: ClientAuthentication, context: Context<ClientDetails>?) {
-        val secretCandidates = clientCredentialsSelector
-            .selectClientSecrets(clientAuth.clientID, clientAuth.method, context)
-            .filterNotNull()
-            .ifEmpty {
-                throw InvalidClientException.NO_REGISTERED_SECRET
-            }
-
-        val plainAuth = clientAuth as PlainClientSecret
-
-        for (candidate in secretCandidates) {
-
-            // Constant time, SHA-256 based, unless overridden
-            if (candidate == plainAuth.clientSecret) {
-                return  // success
-            }
-        }
-
-        throw InvalidClientException.BAD_SECRET
-    }
-}
-
-
-@Component
-class DatabaseClientCredentialsSelector(
-    val clientDetailsRepository: ClientDetailsRepository
-): ClientCredentialsSelector<ClientDetails> {
-    override fun selectClientSecrets(
-        claimedClientID: ClientID,
-        authMethod: ClientAuthenticationMethod,
-        context: Context<ClientDetails>?
-    ): MutableList<Secret> {
-        return when (val result = this.clientDetailsRepository.findByClientIdAndClientAuthenticationMethod(claimedClientID.value, authMethod.value)) {
-            null -> mutableListOf()
-            else -> mutableListOf(Secret(result.clientSecret))
-        }
-    }
-
-    override fun selectPublicKeys(
-        claimedClientID: ClientID?,
-        authMethod: ClientAuthenticationMethod?,
-        jwsHeader: JWSHeader?,
-        forceRefresh: Boolean,
-        context: Context<ClientDetails>?
-    ): MutableList<out PublicKey> {
-        return mutableListOf()
+        return tokens
     }
 }
