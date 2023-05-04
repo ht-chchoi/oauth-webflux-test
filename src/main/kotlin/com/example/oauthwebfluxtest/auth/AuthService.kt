@@ -140,17 +140,12 @@ class ClientAuthenticationVerifierEncodeSupport(
     }
 
     private fun verifyPlainClientSecret(clientAuth: ClientAuthentication, context: Context<ClientDetails>?) {
-        val secretCandidates = ListUtils.removeNullItems<Secret?>(
-            clientCredentialsSelector.selectClientSecrets(
-                clientAuth.getClientID(),
-                clientAuth.getMethod(),
-                context
-            )
-        )
-
-        if (CollectionUtils.isEmpty(secretCandidates)) {
-            throw InvalidClientException.NO_REGISTERED_SECRET
-        }
+        val secretCandidates = clientCredentialsSelector
+            .selectClientSecrets(clientAuth.clientID, clientAuth.method, context)
+            .filterNotNull()
+            .ifEmpty {
+                throw InvalidClientException.NO_REGISTERED_SECRET
+            }
 
         val plainAuth = clientAuth as PlainClientSecret
 
