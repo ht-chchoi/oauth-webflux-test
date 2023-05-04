@@ -1,2 +1,12 @@
 server:
   port: 41234
+
+spring:
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    hikari:
+      auto-commit: true
+      minimum-idle: 10
+      maximum-pool-size: 51
+      validation-timeout: 500
+      connection-timeout: 2000

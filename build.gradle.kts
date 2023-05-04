@@ -27,8 +27,10 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
 
     implementation("com.nimbusds:c2id-server-sdk:4.53")
-    implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
-    implementation("org.mariadb:r2dbc-mariadb:1.0.3")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    // https://mvnrepository.com/artifact/org.mariadb.jdbc/mariadb-java-client
+    implementation("org.mariadb.jdbc:mariadb-java-client:3.1.4")
+
 }
 
 tasks.withType<KotlinCompile> {
